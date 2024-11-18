@@ -1,0 +1,283 @@
+Trigger Jobdesk
+
+Trigger ini dimasukkan ke tabel `jobdesk` karena tujuannya adalah untuk memperbarui kolom `jobdesk_poin` di tabel `points` setiap kali ada perubahan pada tabel `jobdesk`.
+
+Berikut adalah langkah-langkah untuk memastikan trigger ditambahkan ke tabel `jobdesk`:
+
+1. **Trigger untuk Penambahan Data (`INSERT`) di `jobdesk`**
+2. **Trigger untuk Penghapusan Data (`DELETE`) di `jobdesk`**
+3. **Trigger untuk Pembaruan Data (`UPDATE`) di `jobdesk`**
+
+### Implementasi Trigger
+
+#### 1. Trigger untuk Penambahan Data (`INSERT`) di `jobdesk`
+
+```sql
+DELIMITER //
+
+CREATE TRIGGER after_jobdesk_insert
+AFTER INSERT ON jobdesk
+FOR EACH ROW
+BEGIN
+    -- Perbarui jobdesk_poin di tabel points dengan total poin yang baru
+    UPDATE points
+    SET jobdesk_poin = (
+        SELECT COALESCE(SUM(poin), 0)
+        FROM jobdesk
+        WHERE user_id = NEW.user_id
+    )
+    WHERE user_id = NEW.user_id;
+    
+    -- Jika user_id tidak ada di tabel points, tambahkan baris baru
+    IF ROW_COUNT() = 0 THEN
+        INSERT INTO points (user_id, jobdesk_poin)
+        VALUES (NEW.user_id, (
+            SELECT COALESCE(SUM(poin), 0)
+            FROM jobdesk
+            WHERE user_id = NEW.user_id
+        ));
+    END IF;
+END //
+
+DELIMITER ;
+```
+
+#### 2. Trigger untuk Penghapusan Data (`DELETE`) di `jobdesk`
+
+```sql
+DELIMITER //
+
+CREATE TRIGGER after_jobdesk_delete
+AFTER DELETE ON jobdesk
+FOR EACH ROW
+BEGIN
+    -- Perbarui jobdesk_poin di tabel points dengan total poin yang baru
+    UPDATE points
+    SET jobdesk_poin = (
+        SELECT COALESCE(SUM(poin), 0)
+        FROM jobdesk
+        WHERE user_id = OLD.user_id
+    )
+    WHERE user_id = OLD.user_id;
+    
+    -- Jika total poin adalah 0, hapus baris dari tabel points
+    IF (SELECT COALESCE(SUM(poin), 0) FROM jobdesk WHERE user_id = OLD.user_id) = 0 THEN
+        DELETE FROM points WHERE user_id = OLD.user_id;
+    END IF;
+END //
+
+DELIMITER ;
+```
+
+#### 3. Trigger untuk Pembaruan Data (`UPDATE`) di `jobdesk`
+
+```sql
+DELIMITER //
+
+CREATE TRIGGER after_jobdesk_update
+AFTER UPDATE ON jobdesk
+FOR EACH ROW
+BEGIN
+    -- Perbarui jobdesk_poin di tabel points dengan total poin yang baru
+    UPDATE points
+    SET jobdesk_poin = (
+        SELECT COALESCE(SUM(poin), 0)
+        FROM jobdesk
+        WHERE user_id = NEW.user_id
+    )
+    WHERE user_id = NEW.user_id;
+END //
+
+DELIMITER ;
+```
+
+### Penjelasan
+
+- **Subquery dengan COALESCE**: Menggunakan `COALESCE(SUM(poin), 0)` untuk memastikan bahwa subquery selalu mengembalikan nilai tunggal, bahkan jika tidak ada baris yang cocok di tabel `jobdesk`.
+- **IF Statements**: Digunakan untuk memeriksa kondisi tertentu sebelum melakukan aksi lebih lanjut, seperti menyisipkan baris baru atau menghapus baris.
+
+### Langkah-langkah untuk Mengimplementasikan Trigger
+
+1. **Jalankan SQL Statements**: Jalankan perintah SQL di atas pada database Anda. Pastikan bahwa Anda menggunakan `DELIMITER` untuk menangani blok kode dalam trigger dengan benar.
+2. **Verifikasi Trigger**: Setelah menambahkan trigger, verifikasi bahwa trigger telah ditambahkan dengan benar menggunakan perintah `SHOW TRIGGERS;`.
+3. **Uji Trigger**: Tambahkan, hapus, atau perbarui data di tabel `jobdesk` dan periksa apakah perubahan tersebut tercermin dengan benar di tabel `points`.
+
+Dengan implementasi ini, trigger di tabel `jobdesk` akan secara otomatis memperbarui kolom `jobdesk_poin` di tabel `points` setiap kali ada perubahan pada tabel `jobdesk`.
+
+
+
+
+
+
+Trigger Users
+
+The error `#1054 - Unknown column 'id' in 'NEW'` indicates that the `users` table does not have a column named `id`. You need to ensure that you are using the correct primary key column name from your `users` table. 
+
+Here’s how you can check and correct it:
+
+1. **Verify the primary key column name in the `users` table:**
+
+   ```sql
+   DESCRIBE users;
+   ```
+
+   This command will list all columns in the `users` table along with their details. Identify the correct primary key column name.
+
+2. **Update the trigger statements with the correct column name:**
+
+   Suppose the primary key column is named `user_id` instead of `id`. Update the trigger creation statements accordingly.
+
+Here’s the updated version of the trigger creation statements, assuming the primary key column is `user_id`:
+
+1. **Trigger for the `gaji` table:**
+
+   ```sql
+   DELIMITER //
+
+   CREATE TRIGGER after_user_insert_gaji
+   AFTER INSERT ON users
+   FOR EACH ROW
+   BEGIN
+       INSERT INTO gaji (
+           user_id, 
+           bulan, 
+           tahun, 
+           gaji_pokok, 
+           tunjangan, 
+           pemotongan, 
+           gaji_total, 
+           status_pembayaran, 
+           created_at, 
+           updated_at
+       ) VALUES (
+           NEW.user_id, 
+           MONTH(CURDATE()), 
+           YEAR(CURDATE()), 
+           0, 
+           0, 
+           0, 
+           0, 
+           'unpaid', 
+           NOW(), 
+           NOW()
+       );
+   END//
+
+   DELIMITER ;
+   ```
+
+2. **Trigger for the `points` table:**
+
+   ```sql
+   DELIMITER //
+
+   CREATE TRIGGER after_user_insert_points
+   AFTER INSERT ON users
+   FOR EACH ROW
+   BEGIN
+       INSERT INTO points (
+           user_id, 
+           tahun, 
+           bulan, 
+           jobdesk_poin, 
+           terlambat_poin, 
+           total_poin, 
+           created_at, 
+           updated_at
+       ) VALUES (
+           NEW.user_id, 
+           YEAR(CURDATE()), 
+           MONTH(CURDATE()), 
+           0, 
+           0, 
+           0, 
+           NOW(), 
+           NOW()
+       );
+   END//
+
+   DELIMITER ;
+   ```
+
+Make sure to replace `user_id` with the actual primary key column name if it is different. Run these updated statements in your MySQL client to create the triggers.
+
+
+
+
+If you want to ensure that when a user is deleted from the `users` table, their corresponding records in the `gaji` and `points` tables are also deleted, you need to create `AFTER DELETE` triggers. Here’s how you can do it:
+
+1. **Trigger for deleting related records in the `gaji` table:**
+
+   ```sql
+   DELIMITER //
+
+   CREATE TRIGGER after_user_delete_gaji
+   AFTER DELETE ON users
+   FOR EACH ROW
+   BEGIN
+       DELETE FROM gaji WHERE user_id = OLD.user_id;
+   END//
+
+   DELIMITER ;
+   ```
+
+2. **Trigger for deleting related records in the `points` table:**
+
+   ```sql
+   DELIMITER //
+
+   CREATE TRIGGER after_user_delete_points
+   AFTER DELETE ON users
+   FOR EACH ROW
+   BEGIN
+       DELETE FROM points WHERE user_id = OLD.user_id;
+   END//
+
+   DELIMITER ;
+   ```
+
+Explanation:
+- **`AFTER DELETE ON users`**: This specifies that the trigger will be executed after a delete operation on the `users` table.
+- **`FOR EACH ROW`**: This means the trigger will be executed for each row that is deleted.
+- **`OLD.user_id`**: This refers to the `user_id` of the row being deleted from the `users` table.
+
+When these triggers are created, deleting a user from the `users` table will automatically delete the corresponding records from the `gaji` and `points` tables.
+
+Here is the full process to create these triggers:
+
+1. **Open your MySQL client.**
+
+2. **Select your database:**
+   ```sql
+   USE your_database_name;
+   ```
+
+3. **Create the `gaji` deletion trigger:**
+   ```sql
+   DELIMITER //
+
+   CREATE TRIGGER after_user_delete_gaji
+   AFTER DELETE ON users
+   FOR EACH ROW
+   BEGIN
+       DELETE FROM gaji WHERE user_id = OLD.user_id;
+   END//
+
+   DELIMITER ;
+   ```
+
+4. **Create the `points` deletion trigger:**
+   ```sql
+   DELIMITER //
+
+   CREATE TRIGGER after_user_delete_points
+   AFTER DELETE ON users
+   FOR EACH ROW
+   BEGIN
+       DELETE FROM points WHERE user_id = OLD.user_id;
+   END//
+
+   DELIMITER ;
+   ```
+
+By running these statements, the triggers will be created and associated with the `users` table. Afterward, whenever a row is deleted from the `users` table, the related rows in the `gaji` and `points` tables will also be deleted automatically.

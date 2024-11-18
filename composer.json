@@ -1,0 +1,24 @@
+{
+    "name": "berkah-solo-web/e-kinerja",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "BerkahSoloWeb\\EKinerja\\": "app"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "BerkahSoloWeb\\EKinerja\\": "test"
+        }
+    },
+    "authors": [{
+        "name": "Faizal Dwi Al Farizi",
+        "email": "21faizal.farizi@poltekindonusa.ac.id"
+    }],
+    "require": {
+        "php": "^7.4 || ^8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "9.5.8"
+    }
+}
